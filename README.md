@@ -1,4 +1,4 @@
-# 🚀 AI-Powered JSON Analytics Engine (High Performance)
+# AI-Powered JSON Analytics Engine (High Performance)
 
 A FastAPI-based AI system designed to intelligently identify relationships (links) between multiple JSON files and provide answers in natural language. Built with Semantic Caching, Asynchronous Processing, and Local LLMs to ensure high speed, scalability, and full data privacy.
 
