@@ -1,0 +1,23 @@
+services:
+  ai-app:
+    build: .
+    container_name: ai_analyzer_api
+    restart: always
+    volumes:
+      - ./data:/app/data
+      - ./brain_data:/app/brain_data
+      - ./cache_data:/app/cache_data
+    environment:
+      - PYTHONPATH=/app
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx_proxy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - ai-app
