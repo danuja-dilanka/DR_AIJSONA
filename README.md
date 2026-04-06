@@ -1,4 +1,4 @@
-
+![DR_AIJSONA Logo](assets/logo.png)
 
 ![Version](https://img.shields.io/badge/version-v1.0.0-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi)
