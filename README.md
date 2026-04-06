@@ -1,3 +1,11 @@
+![DR_AIJSONA Logo](assets/logo.png)
+
+![Version](https://img.shields.io/badge/version-v1.0.0-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi)
+![Python 3.9+](https://img.shields.io/badge/python-3.9+-3776AB?style=flat&logo=python&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Privacy](https://img.shields.io/badge/Data%20Privacy-High-green)
+
 # AI-Powered JSON Analytics Engine (High Performance)
 
 A FastAPI-based AI system designed to intelligently identify relationships (links) between multiple JSON files and provide answers in natural language. Built with Semantic Caching, Asynchronous Processing, and Local LLMs to ensure high speed, scalability, and full data privacy.
