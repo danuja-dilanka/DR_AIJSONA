@@ -1,6 +1,6 @@
 ![DR_AIJSONA Logo](assets/dr_aijsona.png)
 
-![Version](https://img.shields.io/badge/version-v1.1.0-blue)
+![Version](https://img.shields.io/badge/version-v2.0.0-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi)
 ![Ollama](https://img.shields.io/badge/Ollama-Local-white?style=flat&logo=ollama)
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat&logo=docker)
