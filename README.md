@@ -1,41 +1,61 @@
 ![DR_AIJSONA Logo](assets/dr_aijsona.png)
 
-![Version](https://img.shields.io/badge/version-v1.0.0-blue)
+![Version](https://img.shields.io/badge/version-v1.1.0-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi)
-![Python 3.9+](https://img.shields.io/badge/python-3.9+-3776AB?style=flat&logo=python&logoColor=white)
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Privacy](https://img.shields.io/badge/Data%20Privacy-High-green)
+![Ollama](https://img.shields.io/badge/Ollama-Local-white?style=flat&logo=ollama)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat&logo=docker)
+![Nginx](https://img.shields.io/badge/Nginx-Proxy-009639?style=flat&logo=nginx)
 
-# AI-Powered JSON Analytics Engine (High Performance)
+# AI-Powered JSON Analytics Engine (Production Grade)
 
-A FastAPI-based AI system designed to intelligently identify relationships (links) between multiple JSON files and provide answers in natural language. Built with Semantic Caching, Asynchronous Processing, and Local LLMs to ensure high speed, scalability, and full data privacy.
+A high-performance FastAPI-based system designed to intelligently analyze relationships across multiple JSON files using local LLMs. Optimized for **VPS deployment** with a full microservices architecture including Nginx reverse proxy and automated container networking.
 
 ---
 
 ## ✨ Key Features
 
-- **Multi-File Linking**: Automatically detects relationships across JSON files (e.g., `customer_id` → customers.json).
+- **Multi-File Linking**: Intelligent relationship detection across JSON schemas (e.g., `customer_id` linking).
 - **Dual-Layer Caching**:
-  - **Exact Match Cache**: Instant responses using DiskCache.
-  - **Semantic Cache**: Vector similarity-based reuse of previous answers.
-- **High Performance**: Async processing with FastAPI + background tasks.
-- **Privacy-First**: Runs fully local using Ollama (no external API calls).
-- **Production Ready**: Optimized for Docker + Nginx deployment.
+  - **Exact Match Cache**: Instant retrieval using DiskCache.
+  - **Semantic Cache**: AI similarity-based answer reuse.
+- **Production Networking**: Docker bridge networking between API and Ollama.
+- **Reverse Proxy**: Nginx integration for ports 80/443.
+- **Persistent Storage**: Volume mapping ensures durability across restarts.
 
 ---
 
-## 🛠️ Project Structure
+## 🛠️ Microservices Architecture
 
 ```
-my-ai-analyzer/
-├── data/                # Raw JSON data files
+User Query (80/443)
+        ↓
+   [Nginx Proxy]
+        ↓
+[FastAPI Engine (Gunicorn)]
+        ↔
+ [Dual-Layer Cache]
+        ↓
+   [Vector DB (FAISS)]
+        ↓
+ [Ollama Service]
+```
+
+---
+
+## 📂 Project Structure
+
+```
+DR_AIJSONA/
+├── data/                 # Raw JSON files (Host Mounted)
+├── faiss_index/          # Vector DB storage
+├── cache_data/           # Exact cache
+├── semantic_cache_data/  # Semantic cache
+├── nginx/
+│   └── default.conf      # Reverse proxy config
 ├── src/
-│   ├── loader.py        # JSON processing
-│   ├── brain.py         # Vector DB + retrieval
-│   └── api.py           # FastAPI app + caching
-├── brain_data/          # Persistent vector storage
-├── cache_data/          # Exact match cache
-├── semantic_cache_data/ # Semantic cache storage
+│   ├── api.py            # FastAPI app
+│   ├── brain.py          # RAG + vector logic
+│   └── loader.py         # JSON processing
 ├── Dockerfile
 ├── docker-compose.yml
 └── requirements.txt
@@ -43,128 +63,100 @@ my-ai-analyzer/
 
 ---
 
-## ⚙️ Installation & Setup
+## 🚀 Deployment Guide (VPS / Local)
 
 ### 1. Prerequisites
 
-- Python 3.10+
-- Ollama installed and running
+- Docker & Docker Compose
+- Open ports: 80, 443
 
-### Required Models
+---
 
-```bash
-ollama pull qwen2.5-coder:1.5b
-ollama pull nomic-embed-text
+### 2. Environment Configuration
+
+Internal service communication:
+
+```
+http://ollama:11434
 ```
 
 ---
 
-### 2. Manual Setup
-
-```bash
-pip install -r requirements.txt
-```
-
-Place your JSON files inside:
-
-```
-data/
-```
-
-Start the API:
-
-```bash
-python -m src.api
-```
-
----
-
-## 📡 API Documentation
-
-### 🔹 Ask AI
-
-**Endpoint:** `/ask`  
-**Method:** `POST`
-
-#### Request
-
-```json
-{
-  "question": "What is the total price of products bought by Amara?"
-}
-```
-
-#### Response
-
-```json
-{
-  "status": "success",
-  "answer": "Amara bought a Mouse for 2,500 LKR.",
-  "source": "ai_engine"
-}
-```
-
----
-
-### 🔹 Health Check
-
-**Endpoint:** `/health`  
-**Method:** `GET`
-
----
-
-## 🐳 Docker Deployment
+### 3. One-Command Setup
 
 ```bash
 docker-compose up -d --build
 ```
 
-- Runs in detached mode
-- Auto-restart enabled
-- Ideal for VPS deployment
-
 ---
 
-## 🛡️ Performance Tuning
+### 4. Initialize AI Model
 
-- **Cache Expiry**: 1200 seconds (20 minutes)
-- **Semantic Similarity Threshold**: 0.88
-- **Async Background Tasks**: Cache writes happen after response
-
----
-
-## ⚡ Architecture Overview
-
-```
-User Query
-   ↓
-Exact Cache (DiskCache)
-   ↓ (miss)
-Semantic Cache (Vector Similarity)
-   ↓ (miss)
-Vector DB Retrieval (brain.py)
-   ↓
-LLM (Ollama - Local)
-   ↓
-Response + Async Cache Store
+```bash
+docker exec -it ollama_service ollama run llama3
 ```
 
 ---
 
-## 🧠 Example Use Cases
+## 📡 API Endpoints
 
-- ERP Data Analysis (Sales, Customers, Inventory)
-- Financial Insights from JSON exports
-- Log analysis & anomaly detection
-- AI-powered dashboards
+### 🔹 Ask AI
+
+**Endpoint:** `/ask`  
+**Method:** POST
+
+```json
+{
+  "question": "Show me total sales for Amara across all datasets."
+}
+```
 
 ---
 
-## 🔐 Security & Privacy
+### 🔹 Re-index Data
+
+**Endpoint:** `/retrain`  
+**Method:** POST  
+
+Use after adding new JSON files.
+
+---
+
+## 🐳 Docker Configuration (Technical Details)
+
+### Volume Mapping
+
+| Host Path              | Container Path        | Purpose |
+|----------------------|----------------------|--------|
+| ./data               | /app/data            | JSON data |
+| ./faiss_index        | /app/faiss_index     | Vector DB |
+| ./ollama_data        | /root/.ollama        | LLM models |
+
+---
+
+### Optimization
+
+- **Gunicorn Workers**: 4 workers
+- **PythonPath**: `/app`
+- **Preloaded Models**: Flashrank cached during build
+
+---
+
+## 🧠 Performance Metrics
+
+| Scenario            | Response Time |
+|--------------------|--------------|
+| Cache Hit          | < 10ms       |
+| Semantic Cache Hit | < 150ms      |
+| LLM Inference      | Hardware dependent (4GB+ RAM recommended) |
+
+---
+
+## 🔐 Security Considerations
 
 - Fully local inference (Ollama)
 - No external API calls
-- Suitable for sensitive business data
+- Ideal for sensitive enterprise data
 
 ---
 
@@ -176,7 +168,7 @@ This project is licensed under the MIT License.
 
 ## 🤝 Contributing
 
-Contributions and feature requests are welcome!
+Contributions and improvements are welcome!
 
 ---
 

@@ -1,14 +1,28 @@
 services:
-  ai-app:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama_service
+    restart: always
+    volumes:
+      - ./ollama_data:/root/.ollama
+
+  dr-aijsona-api:
     build: .
     container_name: ai_analyzer_api
     restart: always
+    depends_on:
+      - ollama
     volumes:
       - ./data:/app/data
-      - ./brain_data:/app/brain_data
+      - ./faiss_index:/app/faiss_index
       - ./cache_data:/app/cache_data
+      - ./semantic_cache_data:/app/semantic_cache_data
     environment:
       - PYTHONPATH=/app
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_HOST=ollama
+    links:
+      - ollama
 
   nginx:
     image: nginx:latest
@@ -20,4 +34,4 @@ services:
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
     depends_on:
-      - ai-app
+      - dr-aijsona-api

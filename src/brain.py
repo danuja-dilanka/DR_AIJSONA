@@ -1,25 +1,34 @@
-from langchain_chroma import Chroma
-from langchain_community.embeddings import OllamaEmbeddings
+import os
+from langchain_ollama import OllamaEmbeddings
+from langchain_community.vectorstores import FAISS
 from src.loader import load_json_files
 
 embeddings = OllamaEmbeddings(model="nomic-embed-text")
 
-def initialize_brain(data_path, persist_directory):
+def initialize_brain(data_path, faiss_path):
     documents = load_json_files(data_path)
     if not documents:
-        print("Warning: No JSON data found to index.")
         return None
-        
-    vector_db = Chroma.from_documents(
-        documents=documents,
-        embedding=embeddings,
-        persist_directory=persist_directory
-    )
+    vector_db = FAISS.from_documents(documents, embeddings)
+    vector_db.save_local(faiss_path)
     return vector_db
 
-def get_retriever(persist_directory):
-    vector_db = Chroma(
-        persist_directory=persist_directory,
-        embedding_function=embeddings
+def get_retriever(faiss_path, data_path):
+    faiss_file = os.path.join(faiss_path, "index.faiss")
+    
+    if not os.path.exists(faiss_file):
+        print(f"⚠️ FAISS index file not found at {faiss_file}. Initializing brain...")
+        initialize_brain(data_path, faiss_path)
+    
+    vector_db = FAISS.load_local(
+        faiss_path, 
+        embeddings, 
+        allow_dangerous_deserialization=True
     )
     return vector_db.as_retriever(search_kwargs={'k': 10})
+
+def retrain_brain(data_path, faiss_path):
+    documents = load_json_files(data_path)
+    vector_db = FAISS.from_documents(documents, embeddings)
+    vector_db.save_local(faiss_path)
+    return vector_db

@@ -1,4 +1,5 @@
 [
   {"customer_id": "C001", "name": "Kasun", "city": "Colombo"},
-  {"customer_id": "C002", "name": "Amara", "city": "Kandy"}
+  {"customer_id": "C002", "name": "Amara", "city": "Kandy"},
+  {"customer_id": "C003", "name": "Dilanka", "city": "Kandy"}
 ]
