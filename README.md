@@ -6,38 +6,44 @@
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat&logo=docker)
 ![Nginx](https://img.shields.io/badge/Nginx-Proxy-009639?style=flat&logo=nginx)
 
-# AI-Powered JSON Analytics Engine (Production Grade)
+# DR_AIJSONA - Enterprise JSON Analytics Engine
 
-A high-performance FastAPI-based system designed to intelligently analyze relationships across multiple JSON files using local LLMs. Optimized for **VPS deployment** with a full microservices architecture including Nginx reverse proxy and automated container networking.
+A high-performance, security-first RAG (Retrieval-Augmented Generation) engine designed to analyze complex JSON datasets while enforcing strict data access policies. Optimized for ERP integrations and VPS deployment.
 
 ---
 
-## ✨ Key Features
+## 🔐 Advanced Security Features (v1.2.0)
 
-- **Multi-File Linking**: Intelligent relationship detection across JSON schemas (e.g., `customer_id` linking).
-- **Dual-Layer Caching**:
-  - **Exact Match Cache**: Instant retrieval using DiskCache.
-  - **Semantic Cache**: AI similarity-based answer reuse.
-- **Production Networking**: Docker bridge networking between API and Ollama.
-- **Reverse Proxy**: Nginx integration for ports 80/443.
-- **Persistent Storage**: Volume mapping ensures durability across restarts.
+- **PBAC (Policy-Based Access Control)**  
+  Restricts AI knowledge based on user roles (Admin, Manager, Staff, etc.)
+
+- **JWT Authentication**  
+  Integrates with external ERP tokens for role-based identity
+
+- **Role-Isolated Vector DBs**  
+  Separate FAISS indexes per role to prevent data leakage
+
+- **Dynamic Chain Construction**  
+  AI pipeline adapts dynamically based on user permissions
 
 ---
 
 ## 🛠️ Microservices Architecture
 
 ```
-User Query (80/443)
+User Query + JWT
         ↓
    [Nginx Proxy]
         ↓
-[FastAPI Engine (Gunicorn)]
-        ↔
- [Dual-Layer Cache]
+[FastAPI Engine (PBAC Layer)]
         ↓
-   [Vector DB (FAISS)]
+ Check Role Index
         ↓
- [Ollama Service]
+ [Role-Specific FAISS]
+        ↓
+ [Re-Ranker (Flashrank)]
+        ↓
+ [Ollama Local LLM]
 ```
 
 ---
@@ -46,123 +52,119 @@ User Query (80/443)
 
 ```
 DR_AIJSONA/
-├── data/                 # Raw JSON files (Host Mounted)
-├── faiss_index/          # Vector DB storage
-├── cache_data/           # Exact cache
-├── semantic_cache_data/  # Semantic cache
-├── nginx/
-│   └── default.conf      # Reverse proxy config
+├── data/                 # Raw JSON files
+├── schemas/              # JSON schema definitions
+├── policy.json           # PBAC rules
+├── faiss_indexes/        # Role-based vector DBs
 ├── src/
-│   ├── api.py            # FastAPI app
-│   ├── brain.py          # RAG + vector logic
-│   └── loader.py         # JSON processing
+│   ├── main.py           # API + security middleware
+│   ├── brain.py          # Multi-role RAG logic
+│   ├── loader.py         # Policy-aware loader
+│   └── __init__.py
 ├── Dockerfile
-├── docker-compose.yml
-└── requirements.txt
+└── docker-compose.yml
 ```
 
 ---
 
-## 🚀 Deployment Guide (VPS / Local)
+## 🚀 Deployment Guide
 
-### 1. Prerequisites
+### 1. Environment Configuration
 
-- Docker & Docker Compose
-- Open ports: 80, 443
+Update your environment:
 
----
-
-### 2. Environment Configuration
-
-Internal service communication:
-
-```
-http://ollama:11434
+```env
+JWT_SECRET=your_erp_jwt_signing_key
+OLLAMA_BASE_URL=http://10.73.7.198:11434
 ```
 
 ---
 
-### 3. One-Command Setup
+### 2. Multi-Role Indexing
 
 ```bash
-docker-compose up -d --build
+curl -X POST http://localhost:8000/retrain
 ```
 
----
-
-### 4. Initialize AI Model
-
-```bash
-docker exec -it ollama_service ollama run llama3
-```
+- Reads `policy.json`
+- Builds isolated FAISS indexes per role
 
 ---
 
 ## 📡 API Endpoints
 
-### 🔹 Ask AI
+### 🔹 Secure Ask AI
 
 **Endpoint:** `/ask`  
-**Method:** POST
+**Method:** POST  
+
+**Headers:**
+```
+Authorization: Bearer <JWT_TOKEN>
+```
+
+**Request:**
 
 ```json
 {
-  "question": "Show me total sales for Amara across all datasets."
+  "question": "What is the total revenue for this quarter?"
 }
 ```
 
+👉 Response is filtered based on role permissions.
+
 ---
 
-### 🔹 Re-index Data
+### 🔹 Role Re-indexing
 
 **Endpoint:** `/retrain`  
 **Method:** POST  
 
-Use after adding new JSON files.
+- Rebuilds all role-based indexes
+- Required after data/policy updates
 
 ---
 
-## 🐳 Docker Configuration (Technical Details)
+## 🐳 Volume Mapping & Persistence
 
-### Volume Mapping
-
-| Host Path              | Container Path        | Purpose |
-|----------------------|----------------------|--------|
-| ./data               | /app/data            | JSON data |
-| ./faiss_index        | /app/faiss_index     | Vector DB |
-| ./ollama_data        | /root/.ollama        | LLM models |
-
----
-
-### Optimization
-
-- **Gunicorn Workers**: 4 workers
-- **PythonPath**: `/app`
-- **Preloaded Models**: Flashrank cached during build
+| Host Path         | Container Path       | Purpose |
+|------------------|---------------------|--------|
+| ./data           | /app/data           | Raw datasets |
+| ./policy.json    | /app/policy.json    | Access rules |
+| ./faiss_indexes  | /app/faiss_indexes  | Secure vector DB |
+| ./cache_data     | /app/cache_data     | Performance cache |
 
 ---
 
 ## 🧠 Performance Metrics
 
-| Scenario            | Response Time |
-|--------------------|--------------|
-| Cache Hit          | < 10ms       |
-| Semantic Cache Hit | < 150ms      |
-| LLM Inference      | Hardware dependent (4GB+ RAM recommended) |
+| Scenario            | Logic                | Response Time |
+|--------------------|---------------------|--------------|
+| Cached Answer      | Exact match         | < 10ms       |
+| Semantic Match     | Vector similarity   | < 150ms      |
+| Full RAG Cycle     | PBAC + LLM          | 1.5s – 3s    |
 
 ---
 
-## 🔐 Security Considerations
+## 🛡️ Security Model
 
-- Fully local inference (Ollama)
-- No external API calls
-- Ideal for sensitive enterprise data
+- **Zero Cloud Leakage**: Fully local inference via Ollama
+- **Memory Isolation**: Role-based FAISS separation
+- **Strict Access Control**: Policy-driven data visibility
+
+---
+
+## ⚙️ ERP Integration Highlights
+
+- Uses existing ERP JWT authentication
+- Maps roles directly to AI access layers
+- Enables secure “Ask Your Data” feature
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+MIT License
 
 ---
 
@@ -174,4 +176,5 @@ Contributions and improvements are welcome!
 
 ## 👨‍💻 Maintainer
 
-Developed by **Danuja Dilanka**
+**Danuja Dilanka**  
+Optimized for Enterprise ERP Systems
