@@ -12,7 +12,7 @@ A high-performance, security-first RAG (Retrieval-Augmented Generation) engine d
 
 ---
 
-## 🔐 Advanced Security Features (v1.2.0)
+## 🔐 Advanced Security Features (v2.2.0)
 
 - **PBAC (Policy-Based Access Control)**  
   Restricts AI knowledge based on user roles (Admin, Manager, Staff, etc.)
