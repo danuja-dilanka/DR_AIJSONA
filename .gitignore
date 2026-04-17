@@ -2,4 +2,4 @@
 /semantic_cache_data
 /src/__pycache__
 /cache_data
-/faiss_index
+/faiss_indexes

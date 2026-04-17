@@ -1,0 +1,20 @@
+{
+  "schema_name": "Customers Records",
+  "attributes": {
+    "product_id": { 
+      "type": "string", 
+      "policy": "customer_details",
+      "visibility": true 
+    },
+    "name": { 
+      "type": "string", 
+      "policy": "customer_details",
+      "visibility": true 
+    },
+    "price": { 
+      "type": "float", 
+      "policy": "customer_details",
+      "visibility": false 
+    }
+  }
+}

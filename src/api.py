@@ -1,139 +1,141 @@
 import os
 import asyncio
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Header, Depends
 from pydantic import BaseModel
 from diskcache import Cache
+import jwt
 
 # LangChain & AI Imports
 from langchain_ollama import OllamaEmbeddings, ChatOllama
-from langchain_community.vectorstores import Chroma
+# from langchain_community.vectorstores import Chroma
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_core.output_parsers import StrOutputParser
 
-# Performance Imports
+# Performance & Custom Imports
 from flashrank import Ranker, RerankRequest
-from src.brain import get_retriever, retrain_brain
+from src.brain import get_retriever, train_all_roles
 
-app = FastAPI(title="AI JSON Analyzer API - Ultra Edition")
+app = FastAPI(title=os.getenv("TITLE", "DR_AIJSONA - Enterprise Edition"))
 
-DATA_PATH = "./data"
-FAISS_PATH = "./faiss_index"
-SEMANTIC_CACHE_PATH = "./semantic_cache_data"
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+# Environment Variables
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+OLLAMAMODEL = os.getenv("OLLAMAMODEL", "qwen2.5-coder:1.5b")
+OLLAMAEMBEDMODEL = os.getenv("OLLAMAEMBEDMODEL", "nomic-embed-text")
+RANKERMODEL = os.getenv("RANKERMODEL", "ms-marco-MiniLM-L-12-v2")
+JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key")
 
-chain = None
+# Cache Paths
+CACHE_PATH = os.getenv("OLLAMA_BASE_URL", "./cache_data")
+SEMANTIC_CACHE_PATH = os.getenv("OLLAMA_BASE_URL", "./semantic_cache_data")
+
+# Global Objects
 ranker_client = None
-base_retriever = None
+llm = None
+exact_cache = Cache(CACHE_PATH)
 
-exact_cache = Cache('./cache_data')
-cache_embeddings = OllamaEmbeddings(model="nomic-embed-text", base_url=OLLAMA_BASE_URL)
-semantic_cache_db = Chroma(persist_directory=SEMANTIC_CACHE_PATH, embedding_function=cache_embeddings)
+cache_embeddings = None
+semantic_cache_db = None
 
 class QueryRequest(BaseModel):
     question: str
 
 @app.on_event("startup")
 async def startup_event():
-    global chain, ranker_client, base_retriever
+    global ranker_client, llm, cache_embeddings, semantic_cache_db
     
-    print("⏳ Loading Re-ranker model...")
-    ranker_client = Ranker(model_name="ms-marco-MiniLM-L-12-v2")
+    cache_embeddings = OllamaEmbeddings(model=OLLAMAEMBEDMODEL, base_url=OLLAMA_BASE_URL)
+    ranker_client = Ranker(model_name=RANKERMODEL)
+    llm = ChatOllama(model=OLLAMAMODEL, base_url=OLLAMA_BASE_URL, temperature=0)
+
+# --- Security Dependency ---
+def get_user_role(authorization: str = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    token = authorization.split(" ")[1]
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        return payload.get("role", "public")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Session")
+
+# --- Core RAG Logic ---
+async def run_rag_chain(question: str, role: str):
+    global llm
     
-    base_retriever = get_retriever(FAISS_PATH, DATA_PATH)
+    if llm is None:
+        raise HTTPException(status_code=500, detail="AI Engine not initialized. Please try again.")
+    
+    # 1. Get the Role-Specific Retriever
+    retriever = get_retriever(role)
+    if not retriever:
+        return "I'm sorry, I don't have access to information for your role."
 
-    llm = ChatOllama(model="qwen2.5-coder:1.5b", base_url=OLLAMA_BASE_URL, temperature=0)
+    # 2. Retrieve Documents
+    docs = await asyncio.to_thread(retriever.invoke, question)
+    if not docs:
+        return "I couldn't find any relevant details in the available records."
 
-    template = """You are a professional business assistant. 
-    Use the provided information to answer directly.
-    STRICT RULES:
-    1. Do NOT mention 'JSON', 'files', 'context', or 'database'.
-    2. Do NOT say 'Based on the provided data'.
-    3. Keep the answer natural and conversational.
+    # 3. Re-rank results for higher precision
+    passages = [{"id": i, "text": d.page_content} for i, d in enumerate(docs)]
+    rerank_req = RerankRequest(query=question, passages=passages)
+    rerank_results = ranker_client.rerank(rerank_req)
+    
+    context_text = "\n\n".join([d["text"] for d in rerank_results[:3]])
 
+    # 4. Prompt & LLM Execution
+    template = """You are a professional business assistant. Use the context to answer directly.
+    STRICT RULES: No mention of 'JSON', 'database', or 'provided data'. Keep it conversational.
+    
     Context: {context}
     Question: {question}
     Answer:"""
-
-    prompt = ChatPromptTemplate.from_template(template)
-
-    def retrieve_and_rerank(question):
-        docs = base_retriever.invoke(question)
-        if not docs:
-            return "I couldn't find any information regarding that."
-
-        passages = [{"id": i, "text": d.page_content} for i, d in enumerate(docs)]
-        
-        request = RerankRequest(query=question, passages=passages)
-        rerank_results = ranker_client.rerank(request)
-        
-        top_docs = rerank_results[:3]
-        return "\n\n".join([d["text"] for d in top_docs])
     
-    context_node = RunnableLambda(lambda q: retrieve_and_rerank(q))
+    prompt = ChatPromptTemplate.from_template(template)
+    chain = prompt | llm | StrOutputParser()
+    
+    return await chain.ainvoke({"context": context_text, "question": question})
 
-    chain = (
-        {
-            "context": context_node,
-            "question": RunnablePassthrough()
-        }
-        | prompt
-        | llm
-        | StrOutputParser()
-    )
-    print("🚀 API is online with Flashrank Re-ranking!")
-
-# --- Caching Functions ---
-def get_semantic_cache(question: str):
+# --- Cache Logic ---
+def check_semantic_cache(question: str):
     try:
         results = semantic_cache_db.similarity_search_with_relevance_scores(question, k=1)
-        if results and results[0][1] > 0.88:
+        if results and results[0][1] > 0.90: # Slightly higher threshold for safety
             return results[0][0].page_content
-    except:
-        pass
+    except: pass
     return None
-
-def update_caches(question: str, answer: str):
-    exact_cache.set(question.lower(), answer, expire=1200)
-    semantic_cache_db.add_texts(texts=[answer], metadatas=[{"question": question}])
 
 # --- Endpoints ---
 @app.post("/ask")
-async def ask_ai(request: QueryRequest, background_tasks: BackgroundTasks):
+async def ask_ai(request: QueryRequest, background_tasks: BackgroundTasks, role: str = Depends(get_user_role)):
     query = request.question.strip()
-    
-    # Check Exact Cache
-    cached_val = exact_cache.get(query.lower())
+    cache_key = f"{role}:{query.lower()}" # Role-based cache key for security
+
+    # 1. Exact Cache
+    cached_val = exact_cache.get(cache_key)
     if cached_val:
-        return {"status": "success", "answer": cached_val, "source": "exact_cache"}
+        return {"answer": cached_val, "source": "cache"}
 
-    # Check Semantic Cache
-    loop = asyncio.get_event_loop()
-    semantic_val = await loop.run_in_executor(None, get_semantic_cache, query)
+    # 2. Semantic Cache
+    semantic_val = await asyncio.to_thread(check_semantic_cache, query)
     if semantic_val:
-        return {"status": "success", "answer": semantic_val, "source": "semantic_cache"}
+        return {"answer": semantic_val, "source": "semantic_cache"}
 
+    # 3. AI Generation
     try:
-        # AI Processing
-        response = await chain.ainvoke(query)
+        response = await run_rag_chain(query, role)
         
-        # Background updates to keep the API fast
-        background_tasks.add_task(update_caches, query, response)
+        # Update caches in background
+        background_tasks.add_task(exact_cache.set, cache_key, response, expire=1200) 
         
-        return {"status": "success", "answer": response, "source": "ai_engine"}
+        return {"answer": response, "source": "ai_engine"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Engine Error: {str(e)}")
 
 @app.post("/retrain")
 async def retrain(background_tasks: BackgroundTasks):
-    def update_task():
-        global base_retriever
-        new_db = retrain_brain(DATA_PATH, FAISS_PATH)
-        base_retriever = new_db.as_retriever()
-        
-    background_tasks.add_task(update_task)
-    return {"status": "Updated"}
+    background_tasks.add_task(train_all_roles)
+    return {"status": "rebuild_started", "message": "Indices are being updated for all roles."}
 
 @app.get("/health")
 def health():
-    return {"status": "online"}
+    return {"status": "online", "model": OLLAMAMODEL}

@@ -1,0 +1,20 @@
+{
+  "schema_name": "Products Records",
+  "attributes": {
+    "customer_id": { 
+      "type": "string", 
+      "policy": "inventory_access",
+      "visibility": true 
+    },
+    "name": { 
+      "type": "string", 
+      "policy": "inventory_access",
+      "visibility": true 
+    },
+    "city": { 
+      "type": "string", 
+      "policy": "inventory_access",
+      "visibility": false 
+    }
+  }
+}

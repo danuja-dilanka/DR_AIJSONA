@@ -1,0 +1,6 @@
+{
+  "policies": {
+    "inventory_access": ["staff", "manager", "admin"],
+    "customer_details": ["sales_rep", "manager", "admin"]
+  }
+}
