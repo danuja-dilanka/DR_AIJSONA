@@ -3,3 +3,4 @@
 /src/__pycache__
 /cache_data
 /faiss_indexes
+/ollama_data

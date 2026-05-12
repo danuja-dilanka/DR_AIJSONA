@@ -1,0 +1,4 @@
+[
+  {"invoice_id": "INV1", "invoice_number": "INV001", "product_id": "P55", "customer_id": "C001", "quantity": 10, "total": 15000},
+  {"invoice_id": "INV2", "invoice_number": "INV002", "product_id": "P99", "customer_id": "C002", "quantity": 5, "total": 50000}
+]

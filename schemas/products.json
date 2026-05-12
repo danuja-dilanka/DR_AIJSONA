@@ -1,7 +1,7 @@
 {
   "schema_name": "Products Records",
   "attributes": {
-    "customer_id": { 
+    "product_id": { 
       "type": "string", 
       "policy": "inventory_access",
       "visibility": true 
@@ -11,8 +11,8 @@
       "policy": "inventory_access",
       "visibility": true 
     },
-    "city": { 
-      "type": "string", 
+    "price": { 
+      "type": "float", 
       "policy": "inventory_access",
       "visibility": false 
     }

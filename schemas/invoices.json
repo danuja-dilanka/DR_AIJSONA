@@ -1,0 +1,39 @@
+{
+  "schema_name": "Invoices Records",
+  "relations": {
+    "customer_id": { "references": "customers.json", "foreign_key": "customer_id" },
+    "product_id":  { "references": "products.json",  "foreign_key": "product_id" }
+  },
+  "attributes": {
+    "invoice_id": { 
+      "type": "string", 
+      "policy": "sales_access",
+      "visibility": false 
+    },
+    "product_id": { 
+      "type": "string", 
+      "policy": "sales_access",
+      "visibility": false 
+    },
+    "customer_id": { 
+      "type": "string", 
+      "policy": "sales_access",
+      "visibility": false 
+    },
+    "invoice_number": { 
+      "type": "string", 
+      "policy": "sales_access",
+      "visibility": true 
+    },
+    "quantity": { 
+      "type": "float", 
+      "policy": "sales_access",
+      "visibility": true 
+    },
+    "total": { 
+      "type": "float", 
+      "policy": "sales_access",
+      "visibility": true 
+    }
+  }
+}
