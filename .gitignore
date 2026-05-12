@@ -1,3 +1,5 @@
+.env
+.env*
 /brain_data
 /semantic_cache_data
 /src/__pycache__
